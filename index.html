@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bitoliy Crypto — Perps Calc</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%82%BF%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-base: #0d0b14;
+      --bg-card: #15121f;
+      --bg-input: #1c1829;
+      --bg-hover: #231e30;
+      --border: #2a2540;
+      --border-acc: #362f50;
+      --accent: #a855f7;
+      --accent2: #c084fc;
+      --green: #39d98a;
+      --red: #ff4f4f;
+      --blue: #4f8fff;
+      --orange: #f97316;
+      --text: #f1f0fa;
+      --muted: #9ca3af;
+      --radius: 14px;
+      --radius-sm: 8px;
+      --perp-grid: 237px 185px 185px 185px 100px 100px 100px 80px;
+
+      --tier1: #a855f7;
+      --tier2: #4f8fff;
+      --tier3: #6b7280;
+      --tier4: #22c55e;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-base);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    #bg-overlay { position: fixed; inset: 0; pointer-events: none; z-index: 900; }
+    .header { position: sticky; top: 0; z-index: 600; }
+    .perp-modal-overlay { z-index: 2000; }
+    #cursor-tooltip { z-index: 9999; }
+
+    #bg-overlay.active {
+      background:
+        radial-gradient(circle at 15% 25%, rgba(168, 85, 247, 0.07) 0%, transparent 35%),
+        radial-gradient(circle at 85% 55%, rgba(168, 85, 247, 0.05) 0%, transparent 30%),
+        radial-gradient(circle at 50% 85%, rgba(79, 143, 255, 0.04) 0%, transparent 25%),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Crect width='60' height='60' fill='none'/%3E%3Ccircle cx='30' cy='30' r='1' fill='%23a855f7' opacity='0.15'/%3E%3C/svg%3E");
+      background-size: 100% 100%, 100% 100%, 100% 100%, 60px 60px;
+      opacity: 0.06;
+    }
+
+    /* HEADER */
+    .header {
+      background: #0f0c17;
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: sticky;
+      top: 0;
+      z-index: 600;
+      box-shadow: 0 1px 24px rgba(0, 0, 0, 0.4);
+    }
+    .header > * { position: relative; z-index: 1; }
+
+    .header-inner {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      text-align: left;
+      flex: 1;
+      column-gap: 24px;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    .header-text-stack { display: flex; flex-direction: column; gap: 2px; }
+
+    .user-branding {
+      font-size: 28px;
+      font-weight: 900;
+      color: var(--accent);
+      letter-spacing: -0.5px;
+      margin-bottom: -2px;
+      line-height: 1.1;
+    }
+
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+
+    .header-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.2px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      line-height: 1.1;
+    }
+
+    .hive-hex {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--accent), #7c3aed);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 26px;
+      color: #fff;
+      font-weight: 900;
+    }
+
+    .header-socials {
+      position: absolute;
+      right: 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .social-link {
+      width: 40px;
+      height: 40px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-acc);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+
+    .social-link:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    .social-link svg { width: 20px; height: 20px; fill: currentColor; }
+
+    /* FORMULA BAR */
+    .formula-bar {
+      background: #0f0c17;
+      border-bottom: 1px solid var(--border);
+      padding: 12px 32px;
+      position: relative;
+      z-index: 550;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 36px;
+      flex-wrap: wrap;
+    }
+
+    .formula-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      flex-shrink: 0;
+    }
+
+    .formula-text { font-size: 16px; color: var(--muted); }
+    .formula-text b { color: var(--accent); font-weight: 700; }
+
+    /* MAIN */
+    .container { max-width: 1440px; margin: 0 auto; padding: 28px 24px; }
+
+    /* TIER HEADER */
+    .tier-section { margin-bottom: 36px; }
+    .tier-header { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+
+    .tier-pill {
+      padding: 6px 18px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .tier1 .tier-pill { background: rgba(168, 85, 247, 0.12); color: var(--tier1); border: 1px solid rgba(168, 85, 247, 0.25); }
+    .tier2 .tier-pill { background: rgba(79, 143, 255, 0.12); color: var(--tier2); border: 1px solid rgba(79, 143, 255, 0.25); }
+    .tier3 .tier-pill { background: rgba(107, 114, 128, 0.12); color: var(--tier3); border: 1px solid rgba(107, 114, 128, 0.25); }
+    .t4 .tier-pill { background: rgba(34, 197, 85, 0.12); color: var(--tier4); border: 1px solid rgba(34, 197, 85, 0.25); }
+
+    /* Launched grid */
+    .launched-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .perp-row.launched-row { margin-bottom: 0; }
+    .perp-row.launched-row .perp-main {
+      cursor: pointer; display: flex !important; flex-direction: column;
+      align-items: center; justify-content: center; padding: 24px 16px;
+      min-height: 100px; text-align: center;
+    }
+    .perp-row.launched-row .proto-info { flex-direction: column; align-items: center; gap: 8px; }
+    .perp-row.launched-row .proto-name { justify-content: center; }
+    .perp-row.launched-row .proto-stage { text-align: center; }
+    .perp-row.launched-row .launched-label {
+      margin-top: 10px; color: var(--tier4); font-size: 12px;
+      font-weight: 600; letter-spacing: 0.5px; opacity: 0.7;
+    }
+    .perp-row.launched-row:hover .launched-label { opacity: 1; }
+    .st-launched { background: rgba(34, 197, 85, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 85, 0.3); }
+
+    .tier-desc { font-size: 15px; color: var(--muted); font-weight: 400; }
+    .tier-line { flex: none; height: 1px; background: var(--border); }
+
+    /* TABLE HEAD */
+    .table-head {
+      display: grid;
+      grid-template-columns: var(--perp-grid);
+      column-gap: 24px;
+      justify-content: start;
+      padding: 0 22px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+
+    .th:first-child { padding-left: 0; }
+    .th {
+      font-size: 13px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.8px; text-align: left;
+    }
+    .th:nth-child(n+2) { text-align: left; }
+    .th.right { text-align: right; }
+
+    /* PERP ROW */
+    .perp-row {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+      overflow: hidden;
+      transition: border-color 0.18s, box-shadow 0.18s, transform 0.18s;
+    }
+    .perp-row:hover {
+      border-color: var(--border-acc);
+      box-shadow: 0 4px 28px rgba(0, 0, 0, 0.32);
+      transform: translateY(-1px);
+    }
+    .perp-row.t1 { border-left: 3px solid rgba(168, 85, 247, 0.4); }
+    .perp-row.t2 { border-left: 3px solid rgba(79, 143, 255, 0.4); }
+    .perp-row.t3 { border-left: 3px solid rgba(107, 114, 128, 0.3); }
+
+    .perp-main {
+      display: grid;
+      grid-template-columns: var(--perp-grid);
+      column-gap: 24px;
+      justify-content: start;
+      align-items: center;
+      padding: 20px 22px;
+      cursor: pointer;
+      position: relative;
+    }
+
+    @media (min-width: 769px) {
+      .perp-row:not(.launched-row) .perp-main > *:not(:last-child) { position: relative; }
+      .perp-row:not(.launched-row) .perp-main > *:not(:last-child)::after {
+        content: ""; position: absolute; right: -12px; top: 50%; transform: translateY(-50%);
+        width: 1px; height: 56%; background: rgba(255, 255, 255, 0.06); pointer-events: none;
+      }
+      .table-head .th:not(:last-child) { position: relative; }
+      .table-head .th:not(:last-child)::after {
+        content: ""; position: absolute; right: -12px; top: 50%; transform: translateY(-50%);
+        width: 1px; height: 120%; background: rgba(255, 255, 255, 0.06); pointer-events: none;
+      }
+    }
+
+    .btn-group {
+      display: flex; gap: 10px; justify-content: flex-end;
+      align-items: center; justify-self: end; flex-shrink: 0; width: 80px;
+    }
+
+    .proto-info {
+      width: 100%; display: flex; align-items: center; gap: 11px;
+      justify-self: start; padding-left: 0;
+      transition: all 0.2s; border-radius: var(--radius-sm);
+    }
+    .proto-info.has-link { cursor: pointer; }
+    .proto-info.has-link:hover {
+      background: rgba(255, 255, 255, 0.04);
+      box-shadow: 0 0 20px 5px rgba(168, 85, 247, 0.08);
+      transform: translateY(-1.5px);
+    }
+
+    .proto-logo {
+      width: 52px; height: 52px; border-radius: 50%;
+      background: var(--bg-input); border: 1px solid var(--border-acc);
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden; flex-shrink: 0; font-size: 15px; font-weight: 800; color: var(--accent);
+    }
+    .proto-logo img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+    .proto-name { font-size: 18px; font-weight: 700; color: var(--text); line-height: 1.2; }
+    .proto-stage { font-size: 14px; font-weight: 500; color: var(--muted); margin-top: 3px; }
+
+    .status-badge {
+      display: inline-block; padding: 3px 10px; border-radius: 6px;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.6px;
+      text-transform: uppercase; margin-left: 5px; vertical-align: middle;
+    }
+    .st-active { background: rgba(57, 217, 138, 0.10); color: var(--green); border: 1px solid rgba(57, 217, 138, 0.2); }
+    .st-tge_soon { background: rgba(255, 157, 0, 0.12); color: var(--orange); border: 1px solid rgba(255, 157, 0, 0.25); }
+    .st-late { background: rgba(255, 79, 79, 0.10); color: var(--red); border: 1px solid rgba(255, 79, 79, 0.2); }
+    .st-boost { background: rgba(249, 115, 22, 0.12); color: var(--orange); border: 1px solid rgba(249, 115, 22, 0.25); }
+
+    /* INPUT GROUP */
+    .inp-group { display: flex; flex-direction: column; gap: 5px; }
+    .inp-label { display: none; font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; }
+
+    .inp-row { display: flex; align-items: center; gap: 4px; margin-top: 6px; justify-content: flex-start; }
+
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none; flex: none;
+      height: 3px; border-radius: 4px; background: var(--bg-input); outline: none; cursor: pointer;
+    }
+    .inp-row input[type="range"] {
+      -webkit-appearance: none; flex: 1 1 auto; width: auto; min-width: 40px;
+      height: 4px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; outline: none; transition: background 0.2s;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%;
+      background: var(--accent); cursor: pointer; border: 2px solid var(--bg-card);
+      box-shadow: 0 0 5px rgba(168, 85, 247, 0.35); transition: box-shadow 0.15s, transform 0.1s;
+    }
+    input[type="range"]:hover::-webkit-slider-thumb { box-shadow: 0 0 10px rgba(168, 85, 247, 0.6); transform: scale(1.15); }
+    input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.25); }
+
+    .num-input {
+      background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      color: var(--text); font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 700;
+      padding: 6px 8px; width: 74px !important; text-align: right; outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .perp-main .point-group .num-input, .perp-main .value-group .num-input { width: 105px !important; }
+    .num-input::-webkit-outer-spin-button, .num-input::-webkit-inner-spin-button { -webkit-appearance: none; appearance: none; margin: 0; }
+    .num-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.12); }
+
+    .inp-value-row {
+      display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+      justify-content: flex-end; width: auto; white-space: nowrap !important;
+    }
+    .inp-unit { font-size: 13px; color: var(--muted); font-weight: 500; flex-shrink: 0; }
+
+    /* PRICE CELL */
+    .price-cell { text-align: right; padding-right: 0; }
+    .price-big {
+      font-size: 26px; font-weight: 800; color: var(--accent);
+      letter-spacing: -0.5px; white-space: nowrap; display: inline-block;
+    }
+    .price-small { font-size: 13px; color: var(--muted); font-weight: 500; margin-top: 2px; }
+
+    @keyframes popIn {
+      0% { opacity: 0.4; transform: scale(0.93); }
+      60% { transform: scale(1.04); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    .price-pop { animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+    .proto-info {
+      transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
+      border-radius: var(--radius-sm); padding: 4px 8px 4px 0; margin: -4px 0;
+    }
+
+    /* EXPAND/RESET BUTTONS */
+    .expand-btn {
+      background: var(--bg-input); border: 1px solid var(--border-acc); border-radius: var(--radius-sm);
+      color: var(--muted); cursor: pointer; width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; transition: all 0.2s; justify-self: end;
+    }
+    .expand-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(168, 85, 247, 0.06); }
+    .expand-btn.open { transform: rotate(180deg); border-color: rgba(168, 85, 247, 0.5); color: var(--accent); }
+
+    .reset-row-btn {
+      display: flex; background: var(--bg-input); border: 1px solid var(--border-acc);
+      border-radius: var(--radius-sm); color: var(--muted); cursor: pointer;
+      width: 32px; height: 32px; align-items: center; justify-content: center;
+      font-size: 14px; transition: all 0.2s;
+    }
+    .reset-row-btn:hover { border-color: var(--accent2); color: var(--accent2); background: rgba(192, 132, 252, 0.06); }
+
+    /* DETAILS PANEL */
+    .perp-details { display: none; border-top: 1px solid var(--border); padding: 16px 18px 18px; background: rgba(0, 0, 0, 0.18); }
+    .perp-details.open { display: block; animation: slideDown 0.22s ease; }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+    .details-chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 13px; }
+    .d-chip { background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 13px; min-width: 110px; }
+    .d-chip-label { font-size: 9.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+    .d-chip-val { font-size: 13.5px; font-weight: 700; color: var(--text); }
+    .d-chip-val.accent { color: var(--accent); }
+
+    .conditions-row { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+    .cond-tag { background: var(--bg-input); border: 1px solid var(--border); border-radius: 20px; padding: 3px 11px; font-size: 11.5px; color: var(--muted); }
+    .cond-tag::before { content: '> '; color: var(--accent); font-weight: 700; }
+
+    .live-formula {
+      background: #0b0a10; border: 1px dashed var(--border-acc); border-radius: var(--radius-sm);
+      padding: 9px 14px; font-size: 12px; color: var(--muted);
+      font-family: 'Courier New', monospace; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    }
+    .live-formula .fv { color: var(--accent); font-weight: 700; }
+
+    .row-footer { display: flex; align-items: center; gap: 10px; margin-top: 11px; }
+    .reset-btn {
+      background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+      color: var(--muted); font-family: 'Inter', sans-serif; font-size: 11px;
+      padding: 4px 11px; cursor: pointer; transition: all 0.15s;
+    }
+    .reset-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+    .ref-tag { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+    .ref-tag span { color: var(--accent); font-weight: 700; font-family: monospace; }
+
+    /* FOOTER */
+    .footer { text-align: center; padding: 12px 28px 16px; font-size: 11.5px; color: var(--muted); }
+    .footer b { color: var(--accent); }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg-base); }
+    ::-webkit-scrollbar-thumb { background: var(--border-acc); border-radius: 3px; }
+
+    /* CONFIG BUTTON */
+    .cfg-btn {
+      background: var(--bg-input); border: 1px solid var(--border-acc); border-radius: var(--radius-sm);
+      color: var(--muted); font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600;
+      padding: 8px 16px; cursor: pointer; display: flex; align-items: center; gap: 8px;
+      transition: all 0.18s; flex-shrink: 0;
+    }
+    .cfg-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(168, 85, 247, 0.06); }
+
+    /* CONFIG MODAL */
+    .cfg-overlay {
+      position: fixed; inset: 0; background: rgba(0, 0, 0, 0.65);
+      z-index: 200; display: none; align-items: flex-start; justify-content: center; padding-top: 60px;
+    }
+    .cfg-overlay.open { display: flex; animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+
+    .cfg-modal {
+      background: #15121f; border: 1px solid var(--border-acc); border-radius: var(--radius);
+      width: 820px; max-width: calc(100vw - 32px); max-height: calc(100vh - 80px);
+      display: flex; flex-direction: column; box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6); overflow: hidden;
+    }
+    .cfg-head { display: flex; align-items: center; justify-content: start; padding: 16px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .cfg-title { font-size: 14px; font-weight: 700; color: var(--text); }
+    .cfg-title span { color: var(--accent); }
+    .cfg-close {
+      background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+      color: var(--muted); cursor: pointer; width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.15s;
+    }
+    .cfg-close:hover { border-color: var(--red); color: var(--red); }
+    .cfg-body { overflow-y: auto; padding: 16px 20px; flex: none; }
+    .cfg-note {
+      font-size: 11.5px; color: var(--muted); margin-bottom: 14px; padding: 8px 12px;
+      background: var(--bg-input); border-radius: var(--radius-sm); border-left: 3px solid var(--accent);
+    }
+    .cfg-table { width: 100%; border-collapse: collapse; }
+    .cfg-table thead tr { border-bottom: 1px solid var(--border-acc); }
+    .cfg-table th { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; padding: 6px 10px; text-align: left; }
+    .cfg-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .cfg-table tr:last-child td { border-bottom: none; }
+    .cfg-proto-name { font-size: 13px; font-weight: 700; color: var(--text); white-space: nowrap; }
+    .cfg-tier-tag { font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 4px; margin-left: 5px; text-transform: uppercase; }
+    .tag-t1 { background: rgba(168, 85, 247, 0.12); color: var(--accent); }
+    .tag-t2 { background: rgba(79, 143, 255, 0.12); color: var(--blue); }
+    .tag-t3 { background: rgba(107, 114, 128, 0.12); color: var(--muted); }
+    .cfg-input {
+      background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 700;
+      padding: 4px 8px; width: 90px; text-align: right; outline: none; transition: border-color 0.15s;
+    }
+    .cfg-input::-webkit-outer-spin-button, .cfg-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .cfg-input:focus { border-color: var(--accent); }
+    .cfg-unit { font-size: 11px; color: var(--muted); margin-left: 4px; }
+    .cfg-price-preview { font-size: 13px; font-weight: 800; color: var(--accent); text-align: right; min-width: 80px; }
+    .cfg-foot { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--border); flex-shrink: 0; }
+    .cfg-apply {
+      background: var(--accent); border: none; border-radius: var(--radius-sm);
+      color: #fff; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 800;
+      padding: 8px 20px; cursor: pointer; transition: opacity 0.15s;
+    }
+    .cfg-apply:hover { opacity: 0.88; }
+    .cfg-reset-all {
+      background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+      color: var(--muted); font-family: 'Inter', sans-serif; font-size: 12px;
+      padding: 7px 14px; cursor: pointer; transition: all 0.15s;
+    }
+    .cfg-reset-all:hover { border-color: var(--red); color: var(--red); }
+    .cfg-saved-msg { font-size: 11px; color: var(--green); margin-left: auto; opacity: 0; transition: opacity 0.3s; }
+    .cfg-saved-msg.show { opacity: 1; }
+
+    /* CURSOR TOOLTIP */
+    #cursor-tooltip {
+      position: fixed; pointer-events: none; z-index: 9999;
+      background: #1c1829; border: 1px solid var(--accent); border-radius: 8px;
+      padding: 6px 13px; font-size: 12px; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.4px; white-space: nowrap; display: none;
+      box-shadow: 0 4px 20px rgba(168, 85, 247, 0.18);
+    }
+
+    /* PERP MODAL */
+    .perp-modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.72); backdrop-filter: blur(6px);
+      z-index: 2000; align-items: center; justify-content: center; padding: 24px;
+    }
+    .perp-modal-overlay.open { display: flex; animation: modalFadeIn 0.22s ease; }
+    @keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .perp-modal {
+      background: var(--bg-card); border: 1px solid var(--border-acc); border-radius: 20px;
+      max-width: 920px; width: 100%; max-height: 90vh; overflow-y: auto; overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(168, 85, 247, 0.08);
+      animation: modalSlideUp 0.25s ease;
+    }
+    @keyframes modalSlideUp {
+      from { opacity: 0; transform: translateY(24px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .perp-modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 28px 16px; border-bottom: 1px solid var(--border);
+    }
+    .perp-modal-header-left { display: flex; align-items: center; gap: 14px; }
+    .perp-modal-logo {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: var(--bg-input); border: 1px solid var(--border-acc);
+      display: flex; align-items: center; justify-content: center; overflow: hidden;
+    }
+    .perp-modal-logo img { width: 100%; height: 100%; object-fit: contain; }
+    .perp-modal-name { font-size: 20px; font-weight: 700; color: var(--text); }
+    .perp-modal-stage { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .perp-modal-close {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--bg-input); border: 1px solid var(--border);
+      color: var(--muted); font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+    }
+    .perp-modal-close:hover { border-color: var(--accent); color: var(--accent); background: rgba(168, 85, 247, 0.08); }
+
+    .perp-modal-body { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+    .perp-modal-left { padding: 24px 28px; border-right: 1px solid var(--border); }
+    .perp-modal-right { padding: 24px 28px; }
+    .perp-modal-section-title {
+      font-size: 15px; font-weight: 800; color: #c8cdd8;
+      text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 18px;
+    }
+
+    .modal-slider-group { margin-bottom: 14px; display: flex; align-items: center; gap: 12px; }
+    .modal-slider-group:last-child { margin-bottom: 0; }
+    .modal-slider-label { font-size: 13px; font-weight: 600; color: #b8bfcc; white-space: nowrap; min-width: 90px; flex-shrink: 0; }
+
+    .modal-slider-group input[type="range"], .perp-modal-left input[type="range"] {
+      flex: 1; min-width: 0; -webkit-appearance: none; appearance: none;
+      height: 5px; background: #3a3458; border-radius: 3px; outline: none; margin: 0;
+    }
+    .modal-slider-group input[type="range"]::-webkit-slider-thumb, .perp-modal-left input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%;
+      background: var(--accent); cursor: pointer; border: 2px solid #0d0b14;
+      box-shadow: 0 0 6px rgba(168, 85, 247, 0.4); margin-top: -5.5px;
+    }
+    .modal-slider-group input[type="range"]::-moz-range-thumb, .perp-modal-left input[type="range"]::-moz-range-thumb {
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--accent); cursor: pointer; border: 2px solid #0d0b14;
+      box-shadow: 0 0 6px rgba(168, 85, 247, 0.4);
+    }
+    .modal-slider-group input[type="range"]::-webkit-slider-runnable-track, .perp-modal-left input[type="range"]::-webkit-slider-runnable-track {
+      height: 5px; border-radius: 3px; background: #3a3458;
+    }
+    .modal-slider-group .inp-value-row { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .modal-slider-group .num-input {
+      background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      color: var(--text); font-size: 14px; font-weight: 600; padding: 6px 8px; width: 80px; font-family: inherit;
+    }
+    .modal-slider-group .inp-unit { font-size: 12px; color: #b8bfcc; font-weight: 600; }
+
+    .modal-your-points { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); }
+    .modal-your-points .modal-slider-label { margin-bottom: 8px; color: var(--accent); font-weight: 700; font-size: 14px; text-align: center; }
+    .modal-your-points input {
+      background: rgba(168, 85, 247, 0.06); border: 1.5px solid rgba(168, 85, 247, 0.35);
+      border-radius: var(--radius-sm); color: var(--text); font-size: 16px; font-weight: 700;
+      padding: 11px 12px; width: 100%; font-family: inherit; text-align: center;
+    }
+    .modal-your-points input::placeholder { color: rgba(168, 85, 247, 0.3); }
+    .modal-your-points input:focus { outline: none; border-color: var(--accent); border-style: solid; background: rgba(168, 85, 247, 0.1); }
+
+    .modal-result-card {
+      position: relative; border: 1px solid var(--border); border-radius: 14px;
+      padding: 22px; overflow: hidden; background: #0b0a10;
+    }
+    .modal-result-card::before {
+      content: ''; position: absolute; inset: 0; opacity: 0.06;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Ccircle cx='30' cy='30' r='1.5' fill='%23a855f7'/%3E%3C/svg%3E");
+      background-size: 60px 60px; pointer-events: none; z-index: 0;
+    }
+    .modal-result-card > * { position: relative; z-index: 1; }
+    .modal-top-logo {
+      position: absolute; left: 14px; top: 16px; width: 86px; height: 86px;
+      border-radius: 50%; background: var(--bg-input); border: 1px solid var(--border-acc);
+      display: flex; align-items: center; justify-content: center; overflow: hidden; z-index: 2;
+    }
+    .modal-top-logo img { width: 100%; height: 100%; object-fit: contain; }
+    .modal-top-name { font-weight: 800; font-size: 24px; color: var(--text); margin-bottom: 8px; text-align: center; }
+
+    .modal-metrics { display: flex; flex-direction: column; gap: 4px; margin: 0 0 16px; align-items: center; }
+    .modal-metric-row { display: grid; grid-template-columns: auto auto; gap: 12px; align-items: baseline; }
+    .modal-metric-label { font-size: 11px; color: #b8bfcc; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; text-align: right; }
+    .modal-metric-val { font-size: 17px; font-weight: 700; color: var(--text); text-align: left; }
+
+    .modal-price-hero { text-align: center; margin-bottom: 6px; }
+    .modal-price-hero-label { font-size: 12px; color: #b8bfcc; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700; margin-bottom: 4px; }
+    .modal-price-hero-val { font-size: 36px; font-weight: 800; color: var(--accent); line-height: 1.1; }
+    .modal-formula { text-align: center; font-size: 13px; font-family: 'Courier New', monospace; color: #b8bfcc; margin-bottom: 18px; padding: 0 8px; }
+    .modal-formula .fv { color: var(--accent); font-weight: 700; }
+
+    .modal-est-value {
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.28);
+      border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 16px;
+    }
+    .modal-est-left { display: flex; flex-direction: column; }
+    .modal-est-label { font-size: 12px; color: #b8bfcc; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .modal-est-tokens { font-size: 11px; color: #b8bfcc; margin-top: 2px; }
+    .modal-est-val { font-size: 24px; font-weight: 800; color: var(--accent); }
+
+    .modal-bottom-info { display: flex; flex-direction: column; gap: 8px; }
+    .modal-time-remaining { background: rgba(28, 24, 41, 0.7); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; }
+    .modal-time-remaining .modal-chip-label { font-size: 10px; color: #b8bfcc; }
+    .modal-time-remaining .modal-chip-val { font-size: 13px; }
+    .modal-conditions { display: flex; flex-wrap: wrap; gap: 5px; }
+    .modal-conditions .cond-tag { font-size: 12px; padding: 5px 9px; }
+
+    .modal-share-btn {
+      width: 100%; padding: 11px;
+      background: rgba(168, 85, 247, 0.12); border: 1px solid rgba(168, 85, 247, 0.3);
+      border-radius: var(--radius-sm); color: var(--accent); font-size: 14px; font-weight: 700;
+      cursor: pointer; transition: all 0.15s; font-family: inherit; letter-spacing: 0.3px;
+    }
+    .modal-share-btn:hover { background: rgba(168, 85, 247, 0.2); border-color: rgba(168, 85, 247, 0.5); }
+    .modal-share-btn.copied { background: rgba(57, 217, 138, 0.15); border-color: rgba(57, 217, 138, 0.4); color: var(--green); }
+
+    .modal-reset-btn {
+      margin-top: 14px; padding: 9px 18px; background: transparent;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      color: var(--muted); font-size: 13px; cursor: pointer; font-family: inherit; transition: all 0.15s;
+    }
+    .modal-reset-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .modal-watermark { text-align: center; font-size: 11px; color: #b8bfcc; margin-top: 14px; opacity: 0.7; }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      html, body { overflow-x: hidden !important; width: 100% !important; margin: 0; padding: 0; }
+      .header { display: flex !important; align-items: center !important; height: auto !important; padding: 12px 16px !important; position: relative !important; }
+      .header-inner { flex-direction: row !important; align-items: center !important; justify-content: flex-start !important; padding-top: 0 !important; padding-right: 90px !important; margin: 20px 0 !important; gap: 12px !important; width: 100% !important; }
+      .header-text-stack { align-items: flex-start !important; text-align: left !important; flex-shrink: 0 !important; }
+      .user-branding { font-size: 24px !important; text-align: left !important; margin-bottom: 0 !important; white-space: nowrap !important; }
+      .header-title { font-size: 13px !important; justify-content: flex-start !important; white-space: nowrap !important; }
+      .header-socials { position: absolute !important; right: 12px !important; top: 50% !important; transform: translateY(-50%) !important; margin-top: 0 !important; justify-content: flex-end !important; width: auto !important; z-index: 110 !important; gap: 8px !important; }
+      .social-link { width: 28px !important; height: 28px !important; }
+      .cfg-btn { position: static !important; padding: 0 !important; background: none !important; border: none !important; font-size: 16px !important; margin-right: 4px !important; }
+      .cfg-btn span { display: inline !important; }
+      .container { padding: 12px 10px !important; width: 100% !important; overflow-x: hidden !important; }
+      .formula-bar { flex-direction: row !important; flex-wrap: wrap !important; justify-content: center !important; gap: 8px !important; font-size: 11px !important; padding: 12px 16px !important; width: 100% !important; text-align: center !important; }
+      .formula-text { white-space: normal !important; width: 100% !important; }
+      .table-head { display: none !important; }
+      .perp-row { width: 100% !important; margin: 0 0 10px 0 !important; border-radius: 12px !important; }
+
+      .perp-row:not(.launched-row) .perp-main { flex-direction: row !important; align-items: center !important; justify-content: flex-start !important; padding: 14px 16px !important; min-height: 76px !important; }
+      .perp-row:not(.launched-row) .proto-info { margin-bottom: 0 !important; padding-right: 56px !important; flex: 1 1 auto !important; min-width: 0 !important; }
+      .perp-row:not(.launched-row) .inp-group, .perp-row:not(.launched-row) .price-cell,
+      .perp-row:not(.launched-row) .point-group, .perp-row:not(.launched-row) .value-group { display: none !important; }
+      .perp-row:not(.launched-row) .reset-row-btn { display: none !important; }
+      .perp-row:not(.launched-row) .btn-group { position: static !important; }
+      .perp-row:not(.launched-row) .expand-btn { position: absolute !important; right: 16px !important; left: auto !important; top: 50% !important; transform: translateY(-50%) !important; }
+
+      .launched-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
+      .perp-row.launched-row .perp-main { flex-direction: row !important; align-items: center !important; justify-content: flex-start !important; padding: 18px 20px !important; min-height: 0 !important; text-align: left !important; }
+      .perp-row.launched-row .proto-info { flex-direction: row !important; align-items: center !important; justify-content: flex-start !important; margin-bottom: 0 !important; padding-right: 0 !important; gap: 12px !important; }
+      .perp-row.launched-row .proto-name { justify-content: flex-start !important; text-align: left !important; }
+      .perp-row.launched-row .proto-stage { text-align: left !important; }
+      .perp-row.launched-row .launched-label { margin-left: auto !important; margin-top: 0 !important; opacity: 1 !important; white-space: nowrap !important; padding-left: 12px !important; }
+
+      .perp-modal-overlay { padding: calc(40px + env(safe-area-inset-top, 0px)) 12px calc(40px + env(safe-area-inset-bottom, 0px)) !important; align-items: center !important; }
+      .perp-modal-body { grid-template-columns: 1fr; }
+      .perp-modal-left { border-right: none; border-bottom: 1px solid var(--border); padding: 16px 16px; }
+      .perp-modal-right { padding: 16px 16px; }
+      .perp-modal { border-radius: 20px !important; max-height: calc(100vh - 80px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important; width: 100% !important; max-width: 100% !important; overflow-x: hidden !important; overflow-y: auto !important; }
+      .perp-modal-header { padding: 14px 16px 12px !important; }
+      .modal-result-card, .modal-top-name, .modal-formula, .modal-metrics { max-width: 100% !important; word-break: break-word !important; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="bg-overlay"></div>
+  <div id="cursor-tooltip"></div>
+
+  <!-- Perp Detail Modal -->
+  <div class="perp-modal-overlay" id="perp-modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="perp-modal">
+      <div class="perp-modal-header">
+        <div class="perp-modal-header-left">
+          <div class="perp-modal-logo" id="modal-logo"></div>
+          <div>
+            <div class="perp-modal-name" id="modal-name"></div>
+            <div class="perp-modal-stage" id="modal-stage"></div>
+          </div>
+        </div>
+        <button class="perp-modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="perp-modal-body">
+        <div class="perp-modal-left">
+          <div class="perp-modal-section-title">Parameters</div>
+          <div class="modal-slider-group">
+            <div class="modal-slider-label">FDV</div>
+            <input type="range" id="m-fdv-r" min="10" max="1000" step="10" oninput="onModalFdv(this.value)" />
+            <div class="inp-value-row">
+              <input type="number" id="m-fdv-n" class="num-input" inputmode="decimal" oninput="onModalFdv(this.value)" />
+              <span class="inp-unit">$M</span>
+            </div>
+          </div>
+          <div class="modal-slider-group">
+            <div class="modal-slider-label">Allocation</div>
+            <input type="range" id="m-alc-r" min="1" max="80" step="0.5" oninput="onModalAlc(this.value)" />
+            <div class="inp-value-row">
+              <input type="number" id="m-alc-n" class="num-input" inputmode="decimal" oninput="onModalAlc(this.value)" />
+              <span class="inp-unit">%</span>
+            </div>
+          </div>
+          <div class="modal-slider-group">
+            <div class="modal-slider-label">Total Points</div>
+            <input type="range" id="m-pts-r" min="0.1" max="100" step="0.1" oninput="onModalPts(this.value)" />
+            <div class="inp-value-row">
+              <input type="number" id="m-pts-n" class="num-input" inputmode="decimal" oninput="onModalPts(this.value)" />
+              <span class="inp-unit">M</span>
+            </div>
+          </div>
+          <div class="modal-your-points">
+            <div class="modal-slider-label">ENTER Your Points</div>
+            <input type="text" id="m-ypts" inputmode="numeric" placeholder="Enter amount..." oninput="onModalYourPts(this.value)" onblur="onModalYourPtsBlur()" />
+          </div>
+          <button class="modal-reset-btn" onclick="resetModalPerp()">&#8634; Reset to default</button>
+          <div class="modal-bottom-info" style="margin-top:20px; padding-top:18px; border-top:1px solid var(--border);">
+            <div class="modal-time-remaining" id="modal-time-remaining">
+              <div class="modal-chip-label">Time Remaining</div>
+              <div class="modal-chip-val" id="modal-time-val">&mdash;</div>
+            </div>
+            <div class="modal-conditions" id="modal-conditions"></div>
+          </div>
+        </div>
+        <div class="perp-modal-right">
+          <div class="perp-modal-section-title">Calculation Results</div>
+          <div class="modal-result-card" id="modal-share-area">
+            <div class="modal-top-logo" id="modal-share-logo"></div>
+            <div class="modal-top-name" id="modal-share-name"></div>
+            <div class="modal-metrics" id="modal-metrics" style="text-align:center"></div>
+            <div class="modal-price-hero">
+              <div class="modal-price-hero-label">Point Price</div>
+              <div class="modal-price-hero-val" id="modal-price-hero-val">$0.00</div>
+            </div>
+            <div class="modal-formula" id="modal-formula"></div>
+            <div class="modal-est-value">
+              <div class="modal-est-left">
+                <span class="modal-est-label">Estimated Value</span>
+                <span class="modal-est-tokens" id="modal-est-tokens"></span>
+              </div>
+              <span class="modal-est-val" id="modal-est-val">$0</span>
+            </div>
+            <div class="modal-watermark">Bitoliy Crypto &bull; <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-2px;display:inline"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg> @bitoliy_ &bull; <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-2px;display:inline"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg> bes_rabotnik</div>
+          </div>
+          <button class="modal-share-btn" id="modal-share-btn" onclick="shareModalAsImage()">&#128203; Copy as Image</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Config Modal -->
+  <div class="cfg-overlay" id="cfg-overlay" onclick="if(event.target===this)closeConfig()">
+    <div class="cfg-modal">
+      <div class="cfg-head">
+        <div class="cfg-title"><span>Default Options</span> — Edit base values for all protocols</div>
+        <div style="margin-left:auto">
+          <button class="cfg-close" onclick="closeConfig()">&times;</button>
+        </div>
+      </div>
+      <div class="cfg-body">
+        <div class="cfg-note">Changes here update the default values. Your per-row adjustments will be reset.</div>
+        <table class="cfg-table">
+          <thead>
+            <tr><th>Protocol</th><th>FDV</th><th>Allocation</th><th>Total Points</th><th style="text-align:right">$/Point</th></tr>
+          </thead>
+          <tbody id="cfg-tbody"></tbody>
+        </table>
+      </div>
+      <div class="cfg-foot">
+        <button class="cfg-apply" onclick="applyConfig()">Apply & Save</button>
+        <button class="cfg-reset-all" onclick="hardResetConfig()">Reset All</button>
+        <span class="cfg-saved-msg" id="cfg-saved-msg">Saved!</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+
+  <header class="header">
+    <div class="header-inner">
+      <div class="hive-hex">&#8383;</div>
+      <div class="header-text-stack">
+        <div class="user-branding">Bitoliy Crypto</div>
+        <div class="header-title">Perps Point Cost Calculator <span style="color:var(--muted);font-size:11px">v1.0</span></div>
+      </div>
+      <div class="header-socials">
+        <button class="cfg-btn" onclick="openConfig()"><span>&#9881;</span> Defaults</button>
+        <a class="social-link" href="https://x.com/bitoliy_" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        </a>
+        <a class="social-link" href="https://t.me/bes_rabotnik" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div class="formula-bar">
+    <div class="formula-label">Formula</div>
+    <div class="formula-text">
+      <b>Point Price</b> = (<b>FDV</b> &times; <b>Allocation %</b>) &divide; <b>Total Points</b>
+    </div>
+  </div>
+
+  <div class="container" id="perps-root"></div>
+
+  <footer class="footer">
+    <b>Bitoliy Crypto</b> &mdash; Perps Point Cost Calculator &bull; Estimates only. DYOR.<br />
+    <a href="https://x.com/bitoliy_" target="_blank" style="color:var(--accent);text-decoration:none">@bitoliy_</a> &bull;
+    <a href="https://t.me/bes_rabotnik" target="_blank" style="color:var(--accent);text-decoration:none">Telegram</a>
+  </footer>
+
+  <script>
+    // TIERS
+    const TIERS = [
+      { id: 't1', label: 'Tier 1', desc: 'High confidence', ids: ['variational', 'edgex', 'nado'] },
+      { id: 't2', label: 'Tier 2', desc: 'Moderate confidence', ids: ['ethereal', 'extended', 'grvt', 'o1exchange'] },
+      { id: 't3', label: 'Tier 3', desc: 'Speculative', ids: ['pacifica', 'ostium', 'hibachi'] },
+      { id: 't4', label: 'Launched', desc: 'Already live', ids: ['backpack', 'hyperliquid', 'lighter'] },
+    ];
+
+    const LOGO_B64 = {};
+
+    // PERPS DATA
+    const PERPS = {
+      variational: {
+        name: 'Variational', stage: 'PERP DEX', status: 'active', statusLabel: 'Active',
+        logo: 'https://www.google.com/s2/favicons?domain=variational.io&sz=64', fb: 'VA',
+        fdv: 300, alloc: 20, points: 9.5, ptsMax: 50, ptsStep: 0.5,
+        remaining: '', conditions: [],
+        link: 'https://omni.variational.io/', ref: null,
+      },
+      edgex: {
+        name: 'EdgeX', stage: 'PERP DEX', status: 'launched', statusLabel: 'Launched',
+        logo: 'https://www.google.com/s2/favicons?domain=edgex.exchange&sz=64', fb: 'EX',
+        fdv: 600, alloc: 5, points: 14, ptsMax: 100, ptsStep: 1,
+        remaining: '', conditions: [],
+        link: 'https://pro.edgex.exchange/', ref: null,
+      },
+      nado: {
+        name: 'Nado', stage: 'PERP DEX', status: 'active', statusLabel: 'Active',
+        logo: 'https://www.google.com/s2/favicons?domain=nado.xyz&sz=64', fb: 'NA',
+        fdv: 1000, alloc: 10, points: 30, ptsMax: 200, ptsStep: 1,
+        remaining: '', conditions: [],
+        link: 'https://app.nado.xyz/', ref: null,
+      },
+      ethereal: {
+        name: 'Ethereal', stage: 'PERP DEX', status: 'active', statusLabel: 'Active',
+        logo: 'https://www.google.com/s2/favicons?domain=ethereal.trade&sz=64', fb: 'ET',
+        fdv: 150, alloc: 15, points: 10000, ptsMax: 50000, ptsStep: 100,
+        remaining: '', conditions: [],
+        link: 'https://app.ethereal.trade/', ref: null,
+      },
+      extended: {
+        name: 'Extended', stage: 'PERP DEX', status: 'active', statusLabel: 'Active',
+        logo: 'https://www.google.com/s2/favicons?domain=extended.exchange&sz=64', fb: 'XD',
+        fdv: 200, alloc: 25, points: 50, ptsMax: 300, ptsStep: 1,
+        remaining: '', conditions: [],
+        link: 'https://app.extended.exchange/', ref: null,
+      },
+      grvt: {
+        name: 'GRVT', stage: 'PERP DEX', status: 'active', statusLabel: 'Active',
+        logo: 'https://www.google.com/s2/favicons?domain=grvt.io&sz=64', fb: 'GR',
+        fdv: 150, alloc: 28, points: 5, ptsMax: 50, ptsStep: 0.5,
+        remaining: '', conditions: [],
+        link: 'https://grvt.io/', ref: null,
+      },
+      o1exchange: {
+        name: '01 Exchange', stage: 'PERP DEX', status: 'active', statusLabel: 'Active',
+        logo: 'https://www.google.com/s2/favicons?domain=01.xyz&sz=64', fb: '01',
+        fdv: 75, alloc: 10, points: 10, ptsMax: 80, ptsStep: 0.5,
+        remaining: '', conditions: [],
+        link: 'https://01.xyz/', ref: null,
+      },
+      pacifica: {
+        name: 'Pacifica', stage: 'PERP DEX', status: 'active', statusLabel: 'Active',
+        logo: 'https://www.google.com/s2/favicons?domain=pacifica.fi&sz=64', fb: 'PA',
+        fdv: 100, alloc: 15, points: 300, ptsMax: 1500, ptsStep: 10,
+        remaining: '', conditions: [],
+        link: 'https://app.pacifica.fi/', ref: null,
+      },
+      ostium: {
+        name: 'Ostium', stage: 'PERP DEX', status: 'active', statusLabel: 'Active',
+        logo: 'https://www.google.com/s2/favicons?domain=ostium.com&sz=64', fb: 'OS',
+        fdv: 200, alloc: 15, points: 50, ptsMax: 300, ptsStep: 1,
+        remaining: '', conditions: [],
+        link: 'https://app.ostium.com/trade', ref: null,
+      },
+      hibachi: {
+        name: 'Hibachi', stage: 'PERP DEX', status: 'active', statusLabel: 'Active',
+        logo: 'https://www.google.com/s2/favicons?domain=hibachi.xyz&sz=64', fb: 'HI',
+        fdv: 100, alloc: 15, points: 52, ptsMax: 150, ptsStep: 1,
+        remaining: '', conditions: [],
+        link: 'https://hibachi.xyz/trade', ref: null,
+      },
+      backpack: {
+        name: 'Backpack', stage: 'CEX - SOL', status: 'launched', statusLabel: 'Launched',
+        logo: 'https://www.google.com/s2/favicons?domain=backpack.exchange&sz=64', fb: 'BP',
+        launched: true, link: 'https://backpack.exchange/', ref: null,
+      },
+      hyperliquid: {
+        name: 'Hyperliquid', stage: 'PERP DEX - HyperEVM', status: 'launched', statusLabel: 'Launched',
+        logo: 'https://www.google.com/s2/favicons?domain=hyperliquid.xyz&sz=64', fb: 'HL',
+        launched: true, link: 'https://app.hyperliquid.xyz/', ref: null,
+      },
+      lighter: {
+        name: 'Lighter', stage: 'PERP DEX - EVM', status: 'launched', statusLabel: 'Launched',
+        logo: 'https://www.google.com/s2/favicons?domain=lighter.xyz&sz=64', fb: 'LI',
+        launched: true, link: 'https://app.lighter.xyz/', ref: null,
+      },
+    };
+
+    // STATE
+    let state = {};
+    function initState() {
+      state = {};
+      Object.keys(PERPS).forEach(id => {
+        const p = PERPS[id];
+        if (p.launched) { state[id] = { status: p.status, statusLabel: p.statusLabel }; return; }
+        state[id] = { fdv: p.fdv, alloc: p.alloc, points: p.points, yourPoints: 0, status: p.status, statusLabel: p.statusLabel };
+      });
+    }
+
+    // HELPERS
+    function calcPrice(id) {
+      const s = state[id]; const pts = s.points * 1_000_000;
+      if (!pts) return 0;
+      return (s.fdv * 1_000_000 * s.alloc / 100) / pts;
+    }
+    function fmtPrice(v) {
+      if (v === 0) return '$0.00';
+      if (v >= 1) return '$' + v.toFixed(2);
+      const fmt = v.toPrecision(2);
+      return '$' + Number(fmt).toString();
+    }
+    function fmtPriceBig(v) {
+      if (v === 0) return '$0';
+      const rounded = Math.round(v).toString();
+      return '$' + rounded.replace(/\B(?=(\d{3})+(?!\d))/g, "\u00A0");
+    }
+    function fmtPts(v) {
+      if (v >= 1000) return (v / 1000).toFixed(1) + 'B';
+      return v % 1 === 0 ? v + 'M' : parseFloat(v).toFixed(1) + 'M';
+    }
+    function stClass(s) {
+      return { active: 'st-active', tge_soon: 'st-tge_soon', late: 'st-late', launched: 'st-launched', boost: 'st-boost' }[s] || 'st-active';
+    }
+    function tierClass(tid) { return { t1: 't1', t2: 't2', t3: 't3', t4: 't4' }[tid] || 't3'; }
+    function formatWithSpaces(n) {
+      if (!n && n !== 0) return '';
+      const parts = n.toString().split('.');
+      parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, "\u00A0");
+      return parts.join('.');
+    }
+
+    // RENDER
+    function renderPerp(id, tid) {
+      const p = PERPS[id]; const s = state[id]; const price = calcPrice(id); const tc = tierClass(tid);
+      return `
+  <div class="perp-row ${tc}" id="row-${id}">
+    <div class="perp-main" onclick="toggleDetails('${id}')">
+      <div class="proto-info ${p.link ? 'has-link' : ''}" ${p.link ? `onclick="event.stopPropagation(); window.open('${p.link}', '_blank')"` : ''}>
+        <div class="proto-logo" id="logo-${id}"><img src="${p.logo}" alt="${p.name}" onerror="this.parentElement.innerHTML='${p.fb}'" /></div>
+        <div style="display:flex;flex-direction:column;justify-content:center;">
+          <div class="proto-name" style="display:flex;align-items:center;gap:5px;">${p.name}<span class="status-badge ${stClass(s.status || p.status)}">${(s.statusLabel || p.statusLabel).replace('Final Stretch', 'TGE Soon')}</span></div>
+          <div class="proto-stage">${p.stage}</div>
+          ${p.link ? `<div style="font-size:11px;color:var(--accent);margin-top:2px;font-weight:700;letter-spacing:0.5px">LINK</div>` : ''}
+        </div>
+      </div>
+      <div class="inp-group" onclick="event.stopPropagation()">
+        <div class="inp-label">FDV</div>
+        <div class="inp-row"><input type="range" id="fdv-r-${id}" min="10" max="1000" step="10" value="${s.fdv}" oninput="onFdv('${id}',this.value)" /><div class="inp-value-row"><input type="number" id="fdv-n-${id}" class="num-input" value="${s.fdv}" inputmode="decimal" oninput="onFdv('${id}',this.value)" /><span class="inp-unit">$M</span></div></div>
+      </div>
+      <div class="inp-group" onclick="event.stopPropagation()">
+        <div class="inp-label">Allocation</div>
+        <div class="inp-row"><input type="range" id="alc-r-${id}" min="1" max="80" step="0.5" value="${s.alloc}" oninput="onAlc('${id}',this.value)" /><div class="inp-value-row"><input type="number" id="alc-n-${id}" class="num-input" value="${s.alloc}" inputmode="decimal" oninput="onAlc('${id}',this.value)" /><span class="inp-unit">%</span></div></div>
+      </div>
+      <div class="inp-group" onclick="event.stopPropagation()">
+        <div class="inp-label">Total Points</div>
+        <div class="inp-row"><input type="range" id="pts-r-${id}" min="0.1" max="${p.ptsMax}" step="${p.ptsStep}" value="${s.points}" oninput="onPts('${id}',this.value)" /><div class="inp-value-row"><input type="number" id="pts-n-${id}" class="num-input" value="${s.points}" inputmode="decimal" oninput="onPts('${id}',this.value)" /><span class="inp-unit">M</span></div></div>
+      </div>
+      <div class="price-cell"><div class="price-big" id="price-${id}">${fmtPrice(price)}</div></div>
+      <div class="inp-group point-group" style="align-items:center;text-align:center;" onclick="event.stopPropagation()">
+        <div class="inp-label">Your Points</div>
+        <div class="inp-row"><input type="text" id="ypts-${id}" class="num-input" value="${s.yourPoints ? formatWithSpaces(s.yourPoints) : ''}" style="text-align:center;" inputmode="numeric" oninput="onYourPts('${id}',this.value)" onfocus="onYourPtsFocus(this)" onblur="onYourPtsBlur('${id}',this.value)" placeholder="0" /></div>
+      </div>
+      <div class="inp-group value-group" style="align-items:center;text-align:center;">
+        <div class="inp-label">Est. Value</div>
+        <div class="price-big" id="estval-${id}">${fmtPrice(price * (s.yourPoints || 0))}</div>
+      </div>
+      <div class="btn-group">
+        <button class="reset-row-btn" onclick="event.stopPropagation();resetPerp('${id}')">&#8634;</button>
+        <button class="expand-btn" id="btn-${id}" onclick="event.stopPropagation();toggleDetails('${id}')">&#9662;</button>
+      </div>
+    </div>
+    <div class="perp-details" id="det-${id}">
+      <div class="details-chips">
+        <div class="d-chip"><div class="d-chip-label">Time Remaining</div><div class="d-chip-val">${p.remaining || '&mdash;'}</div></div>
+        <div class="d-chip"><div class="d-chip-label">FDV</div><div class="d-chip-val" id="dd-fdv-${id}">$${s.fdv}M</div></div>
+        <div class="d-chip"><div class="d-chip-label">Allocation</div><div class="d-chip-val" id="dd-alc-${id}">${s.alloc}%</div></div>
+        <div class="d-chip"><div class="d-chip-label">Total Points</div><div class="d-chip-val" id="dd-pts-${id}">${fmtPts(s.points)}</div></div>
+        <div class="d-chip"><div class="d-chip-label">$ / Point</div><div class="d-chip-val accent" id="dd-price-${id}">${fmtPrice(price)}</div></div>
+      </div>
+      <div class="conditions-row">${(p.conditions||[]).map(c => `<span class="cond-tag">${c}</span>`).join('')}</div>
+      <div class="live-formula" id="dd-formula-${id}">Price = (<span class="fv">$${s.fdv}M</span> x <span class="fv">${s.alloc}%</span>) / <span class="fv">${fmtPts(s.points)}</span> = <span class="fv">${fmtPrice(price)}</span></div>
+      <div class="row-footer"><button class="reset-btn" onclick="resetPerp('${id}')">&#8634; Reset to default</button></div>
+    </div>
+  </div>`;
+    }
+
+    function renderLaunched(id, tid) {
+      const p = PERPS[id]; const logoSrc = LOGO_B64[id] || p.logo;
+      return `
+  <div class="perp-row launched-row ${tierClass(tid)}" id="row-${id}" onclick="window.open('${p.link}','_blank')" style="cursor:pointer">
+    <div class="perp-main" style="pointer-events:none">
+      <div class="proto-info">
+        <div class="proto-logo" id="logo-${id}"><img src="${logoSrc}" alt="${p.name}" onerror="this.parentElement.innerHTML='${p.fb}'" /></div>
+        <div style="display:flex;flex-direction:column;justify-content:center;">
+          <div class="proto-name" style="display:flex;align-items:center;gap:5px;">${p.name}<span class="status-badge st-launched">${p.statusLabel}</span></div>
+          <div class="proto-stage">${p.stage}</div>
+        </div>
+      </div>
+      <div class="launched-label">Open link &rarr;</div>
+    </div>
+  </div>`;
+    }
+
+    function renderTier(tier) {
+      const isLaunched = tier.id === 't4';
+      const perpsHtml = tier.ids.map(id => {
+        if (isLaunched || PERPS[id].launched) return renderLaunched(id, tier.id);
+        return renderPerp(id, tier.id);
+      }).join('');
+      const tableHead = isLaunched ? '' : `
+    <div class="table-head">
+      <div class="th">Protocol</div><div class="th">FDV ($M)</div><div class="th">Allocation (%)</div>
+      <div class="th">Total Points</div><div class="th right">$ / Point</div>
+      <div class="th" style="text-align:center">Your Points</div><div class="th" style="text-align:center">Est. Value</div>
+      <div class="th" style="width:80px"></div>
+    </div>`;
+      const content = isLaunched ? `<div class="launched-grid">${perpsHtml}</div>` : `${tableHead}${perpsHtml}`;
+      return `
+  <div class="tier-section ${tier.id}">
+    <div class="tier-header"><div class="tier-pill">${tier.label}</div><div class="tier-desc">${tier.desc}</div><div class="tier-line"></div></div>
+    ${content}
+  </div>`;
+    }
+
+    // EVENT HANDLERS
+    function onFdv(id, v) { v = parseFloat(v) || 0; state[id].fdv = v; document.getElementById(`fdv-r-${id}`).value = v; document.getElementById(`fdv-n-${id}`).value = v; updatePrice(id); }
+    function onAlc(id, v) { v = parseFloat(v) || 0; state[id].alloc = v; document.getElementById(`alc-r-${id}`).value = v; document.getElementById(`alc-n-${id}`).value = v; updatePrice(id); }
+    function onPts(id, v) { v = parseFloat(v) || 0.1; state[id].points = v; document.getElementById(`pts-r-${id}`).value = v; document.getElementById(`pts-n-${id}`).value = v; updatePrice(id); }
+    function onYourPts(id, v) {
+      const cleanVal = v.replace(/[^\d.]/g, ''); const num = parseFloat(cleanVal) || 0;
+      state[id].yourPoints = num;
+      const input = document.getElementById(`ypts-${id}`);
+      if (input) {
+        const caretFromEnd = input.value.length - (input.selectionStart || input.value.length);
+        input.value = cleanVal ? formatWithSpaces(cleanVal) : '';
+        const newPos = Math.max(0, input.value.length - caretFromEnd);
+        try { input.setSelectionRange(newPos, newPos); } catch (e) { }
+      }
+      updatePrice(id);
+    }
+    function onYourPtsFocus(input) {}
+    function onYourPtsBlur(id, v) { const num = state[id].yourPoints; document.getElementById(`ypts-${id}`).value = num > 0 ? formatWithSpaces(num) : ''; }
+
+    function updatePrice(id) {
+      const s = state[id]; const price = calcPrice(id); const estVal = price * (s.yourPoints || 0);
+      const el = document.getElementById(`price-${id}`);
+      el.classList.remove('price-pop'); void el.offsetWidth; el.classList.add('price-pop');
+      el.textContent = fmtPrice(price);
+      const evEl = document.getElementById(`estval-${id}`);
+      if (evEl) evEl.textContent = fmtPrice(estVal);
+      const ddFdv = document.getElementById(`dd-fdv-${id}`);
+      if (ddFdv) ddFdv.textContent = `$${s.fdv}M`;
+      const ddAlc = document.getElementById(`dd-alc-${id}`);
+      if (ddAlc) ddAlc.textContent = `${s.alloc}%`;
+      const ddPts = document.getElementById(`dd-pts-${id}`);
+      if (ddPts) ddPts.textContent = fmtPts(s.points);
+      const ddPrice = document.getElementById(`dd-price-${id}`);
+      if (ddPrice) ddPrice.textContent = fmtPrice(price);
+      const ddFormula = document.getElementById(`dd-formula-${id}`);
+      if (ddFormula) ddFormula.innerHTML = `Price = (<span class="fv">$${s.fdv}M</span> x <span class="fv">${s.alloc}%</span>) / <span class="fv">${fmtPts(s.points)}</span> = <span class="fv">${fmtPrice(price)}</span>`;
+    }
+
+    function toggleDetails(id) { openModal(id); }
+
+    // MODAL
+    let _modalId = null;
+    function openModal(id) {
+      _modalId = id; const p = PERPS[id]; const s = state[id];
+      document.getElementById('modal-logo').innerHTML = `<img src="${p.logo}" alt="${p.name}" onerror="this.parentElement.innerHTML='${p.fb}'" />`;
+      document.getElementById('modal-name').textContent = p.name;
+      document.getElementById('modal-stage').textContent = p.stage;
+      document.getElementById('modal-share-name').textContent = p.name;
+      const logoEl = document.getElementById('modal-share-logo');
+      const b64src = LOGO_B64[id];
+      if (b64src) { logoEl.innerHTML = `<img src="${b64src}" alt="${p.name}" style="width:100%;height:100%;object-fit:contain" />`; }
+      else { logoEl.innerHTML = `<span style="font-size:20px;font-weight:700;color:#9ca3af">${p.name.substring(0, 2).toUpperCase()}</span>`; }
+      document.getElementById('m-fdv-r').value = s.fdv; document.getElementById('m-fdv-n').value = s.fdv;
+      document.getElementById('m-alc-r').value = s.alloc; document.getElementById('m-alc-n').value = s.alloc;
+      const ptsR = document.getElementById('m-pts-r'); ptsR.max = p.ptsMax; ptsR.step = p.ptsStep;
+      ptsR.value = s.points; document.getElementById('m-pts-n').value = s.points;
+      document.getElementById('m-ypts').value = s.yourPoints ? formatWithSpaces(s.yourPoints) : '';
+      updateModalResults();
+      document.getElementById('perp-modal-overlay').classList.add('open');
+      _savedScrollY = window.scrollY || window.pageYOffset || 0;
+      document.body.style.position = 'fixed'; document.body.style.top = `-${_savedScrollY}px`;
+      document.body.style.left = '0'; document.body.style.right = '0';
+      document.body.style.width = '100%'; document.body.style.overflow = 'hidden';
+    }
+    let _savedScrollY = 0;
+    function closeModal() {
+      document.getElementById('perp-modal-overlay').classList.remove('open');
+      document.body.style.position = ''; document.body.style.top = '';
+      document.body.style.left = ''; document.body.style.right = '';
+      document.body.style.width = ''; document.body.style.overflow = '';
+      window.scrollTo(0, _savedScrollY); _modalId = null;
+    }
+
+    function updateModalResults() {
+      if (!_modalId) return;
+      const id = _modalId; const s = state[id]; const p = PERPS[id];
+      const price = calcPrice(id); const estVal = price * (s.yourPoints || 0);
+      document.getElementById('modal-metrics').innerHTML = `
+        <div class="modal-metric-row"><span class="modal-metric-label">FDV</span><span class="modal-metric-val">$${s.fdv}M</span></div>
+        <div class="modal-metric-row"><span class="modal-metric-label">Allocation</span><span class="modal-metric-val">${s.alloc}%</span></div>
+        <div class="modal-metric-row"><span class="modal-metric-label">Total Points</span><span class="modal-metric-val">${fmtPts(s.points)}</span></div>`;
+      document.getElementById('modal-price-hero-val').textContent = fmtPrice(price);
+      document.getElementById('modal-formula').innerHTML = `Price = (<span class="fv">$${s.fdv}M</span> &times; <span class="fv">${s.alloc}%</span>) &divide; <span class="fv">${fmtPts(s.points)}</span> = <span class="fv">${fmtPrice(price)}</span>`;
+      document.getElementById('modal-est-val').textContent = fmtPriceBig(estVal);
+      const yp = s.yourPoints || 0;
+      document.getElementById('modal-est-tokens').textContent = yp > 0 ? `${formatWithSpaces(yp)} tokens` : '';
+      document.getElementById('modal-time-val').textContent = p.remaining || '\u2014';
+      document.getElementById('modal-conditions').innerHTML = (p.conditions || []).map(c => `<span class="cond-tag">${c}</span>`).join('');
+    }
+
+    function onModalFdv(v) { if (!_modalId) return; v = parseFloat(v) || 0; state[_modalId].fdv = v; document.getElementById('m-fdv-r').value = v; document.getElementById('m-fdv-n').value = v; syncModalToMain(_modalId); updateModalResults(); }
+    function onModalAlc(v) { if (!_modalId) return; v = parseFloat(v) || 0; state[_modalId].alloc = v; document.getElementById('m-alc-r').value = v; document.getElementById('m-alc-n').value = v; syncModalToMain(_modalId); updateModalResults(); }
+    function onModalPts(v) { if (!_modalId) return; v = parseFloat(v) || 0.1; state[_modalId].points = v; document.getElementById('m-pts-r').value = v; document.getElementById('m-pts-n').value = v; syncModalToMain(_modalId); updateModalResults(); }
+    function onModalYourPts(v) {
+      if (!_modalId) return;
+      const cleanVal = v.replace(/[^\d.]/g, ''); const num = parseFloat(cleanVal) || 0;
+      state[_modalId].yourPoints = num;
+      const input = document.getElementById('m-ypts');
+      if (input) {
+        const caretFromEnd = input.value.length - (input.selectionStart || input.value.length);
+        input.value = cleanVal ? formatWithSpaces(cleanVal) : '';
+        const newPos = Math.max(0, input.value.length - caretFromEnd);
+        try { input.setSelectionRange(newPos, newPos); } catch (e) { }
+      }
+      syncModalToMain(_modalId); updateModalResults();
+    }
+    function onModalYourPtsBlur() { if (!_modalId) return; const num = state[_modalId].yourPoints; document.getElementById('m-ypts').value = num > 0 ? formatWithSpaces(num) : ''; }
+
+    function syncModalToMain(id) {
+      const s = state[id];
+      const fdvR = document.getElementById(`fdv-r-${id}`);
+      if (fdvR) { fdvR.value = s.fdv; document.getElementById(`fdv-n-${id}`).value = s.fdv; }
+      const alcR = document.getElementById(`alc-r-${id}`);
+      if (alcR) { alcR.value = s.alloc; document.getElementById(`alc-n-${id}`).value = s.alloc; }
+      const ptsR = document.getElementById(`pts-r-${id}`);
+      if (ptsR) { ptsR.value = s.points; document.getElementById(`pts-n-${id}`).value = s.points; }
+      const yptsEl = document.getElementById(`ypts-${id}`);
+      if (yptsEl) yptsEl.value = s.yourPoints ? formatWithSpaces(s.yourPoints) : '';
+      updatePrice(id);
+    }
+
+    function resetModalPerp() { if (!_modalId) return; resetPerp(_modalId); openModal(_modalId); }
+
+    async function shareModalAsImage() {
+      const btn = document.getElementById('modal-share-btn');
+      const area = document.getElementById('modal-share-area');
+      btn.textContent = 'Generating...'; btn.disabled = true;
+      try {
+        const canvas = await html2canvas(area, { backgroundColor: '#0b0a10', scale: 2, useCORS: true, logging: false });
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        if (!blob) throw new Error('Failed');
+        if (navigator.clipboard && window.ClipboardItem) {
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+          btn.textContent = 'Copied to clipboard!'; btn.classList.add('copied');
+        } else {
+          const url = URL.createObjectURL(blob); window.open(url, '_blank');
+          btn.textContent = 'Opened in new tab!'; btn.classList.add('copied');
+        }
+        setTimeout(() => { btn.innerHTML = '&#128203; Copy as Image'; btn.classList.remove('copied'); btn.disabled = false; }, 2000);
+      } catch (e) {
+        console.error('Share error:', e); btn.textContent = 'Error'; btn.disabled = false;
+        setTimeout(() => { btn.innerHTML = '&#128203; Copy as Image'; }, 2000);
+      }
+    }
+
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && _modalId) closeModal(); });
+
+    function resetPerp(id) {
+      const p = PERPS[id];
+      state[id] = { fdv: p.fdv, alloc: p.alloc, points: p.points, yourPoints: 0 };
+      onFdv(id, p.fdv); onAlc(id, p.alloc); onPts(id, p.points);
+      const ypEl = document.getElementById(`ypts-${id}`);
+      if (ypEl) ypEl.value = '';
+      updatePrice(id);
+    }
+
+    // CONFIG EDITOR
+    const PERP_TIER = {};
+    TIERS.forEach(t => t.ids.forEach(id => { PERP_TIER[id] = t.id; }));
+
+    function cfgCalcPrice(fdv, alloc, pts) { if (!pts) return 0; return (fdv * 1_000_000 * alloc / 100) / (pts * 1_000_000); }
+
+    function populateConfig() {
+      const tbody = document.getElementById('cfg-tbody');
+      const allIds = TIERS.flatMap(t => t.ids);
+      tbody.innerHTML = allIds.filter(id => !PERPS[id].launched).map(id => {
+        const p = PERPS[id]; const tc = PERP_TIER[id];
+        const tagClass = { t1: 'tag-t1', t2: 'tag-t2', t3: 'tag-t3' }[tc] || '';
+        const tierLbl = { t1: 'T1', t2: 'T2', t3: 'T3' }[tc] || '';
+        const preview = cfgCalcPrice(p.fdv, p.alloc, p.points);
+        return `<tr>
+          <td><span class="cfg-proto-name">${p.name}</span><span class="cfg-tier-tag ${tagClass}">${tierLbl}</span></td>
+          <td><div class="inp-value-row"><input type="number" class="cfg-input" id="cfg-fdv-${id}" value="${p.fdv}" min="1" step="10" oninput="updateCfgPreview('${id}')" /><span class="cfg-unit">$M</span></div></td>
+          <td><div class="inp-value-row"><input type="number" class="cfg-input" id="cfg-alc-${id}" value="${p.alloc}" min="1" max="80" step="0.5" oninput="updateCfgPreview('${id}')" /><span class="cfg-unit">%</span></div></td>
+          <td><div class="inp-value-row"><input type="number" class="cfg-input" id="cfg-pts-${id}" value="${p.points}" min="0.1" step="0.1" oninput="updateCfgPreview('${id}')" /><span class="cfg-unit">M</span></div></td>
+          <td class="cfg-price-preview" id="cfg-prev-${id}">${fmtPrice(preview)}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function updateCfgPreview(id) {
+      const fdv = parseFloat(document.getElementById(`cfg-fdv-${id}`).value) || 0;
+      const alloc = parseFloat(document.getElementById(`cfg-alc-${id}`).value) || 0;
+      const pts = parseFloat(document.getElementById(`cfg-pts-${id}`).value) || 0.1;
+      const prev = document.getElementById(`cfg-prev-${id}`);
+      if (prev) prev.textContent = fmtPrice(cfgCalcPrice(fdv, alloc, pts));
+    }
+
+    function openConfig() { populateConfig(); document.getElementById('cfg-overlay').classList.add('open'); }
+    function closeConfig() { document.getElementById('cfg-overlay').classList.remove('open'); }
+
+    function applyConfig() {
+      const allIds = TIERS.flatMap(t => t.ids);
+      allIds.forEach(id => {
+        if (PERPS[id].launched) return;
+        const fdv = parseFloat(document.getElementById(`cfg-fdv-${id}`).value);
+        const alloc = parseFloat(document.getElementById(`cfg-alc-${id}`).value);
+        const pts = parseFloat(document.getElementById(`cfg-pts-${id}`).value);
+        if (!isNaN(fdv)) PERPS[id].fdv = fdv;
+        if (!isNaN(alloc)) PERPS[id].alloc = alloc;
+        if (!isNaN(pts)) PERPS[id].points = pts;
+        const currentYPs = state[id] ? state[id].yourPoints : 0;
+        state[id] = { ...state[id], fdv: PERPS[id].fdv, alloc: PERPS[id].alloc, points: PERPS[id].points, yourPoints: currentYPs };
+      });
+      renderAll(); bindTooltips();
+      const saved = {};
+      allIds.forEach(id => { if (PERPS[id].launched) return; saved[id] = { fdv: PERPS[id].fdv, alloc: PERPS[id].alloc, points: PERPS[id].points }; });
+      try { localStorage.setItem('perps-cfg', JSON.stringify(saved)); } catch (e) { }
+      const msg = document.getElementById('cfg-saved-msg');
+      msg.classList.add('show');
+      setTimeout(() => { msg.classList.remove('show'); closeConfig(); }, 700);
+    }
+
+    function hardResetConfig() {
+      if (!confirm('Reset ALL defaults back to the original coded values?')) return;
+      try { localStorage.removeItem('perps-cfg'); } catch (e) { }
+      location.reload();
+    }
+
+    function loadSavedConfig() {
+      try {
+        const raw = localStorage.getItem('perps-cfg');
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        Object.keys(saved).forEach(id => {
+          if (!PERPS[id]) return;
+          if (saved[id].fdv !== undefined) PERPS[id].fdv = saved[id].fdv;
+          if (saved[id].alloc !== undefined) PERPS[id].alloc = saved[id].alloc;
+          if (saved[id].points !== undefined) PERPS[id].points = saved[id].points;
+        });
+      } catch (e) { }
+    }
+
+    // RENDER ALL
+    function renderAll() { document.getElementById('perps-root').innerHTML = TIERS.map(renderTier).join(''); }
+
+    // INIT
+    function init() {
+      initState();
+      loadSavedConfig();
+      renderAll();
+      bindTooltips();
+    }
+
+    // CURSOR TOOLTIP
+    const _tooltip = document.getElementById('cursor-tooltip');
+    document.addEventListener('mousemove', e => { _tooltip.style.left = (e.clientX + 16) + 'px'; _tooltip.style.top = (e.clientY - 10) + 'px'; });
+
+    function bindTooltips() {
+      const isTouch = window.matchMedia && window.matchMedia('(hover: none)').matches;
+      if (isTouch) return;
+      document.querySelectorAll('.proto-info.has-link').forEach(el => {
+        el.addEventListener('mouseenter', () => { _tooltip.textContent = 'Open link \u2197'; _tooltip.style.display = 'block'; });
+        el.addEventListener('mouseleave', () => { _tooltip.style.display = 'none'; });
+      });
+      document.querySelectorAll('.perp-main').forEach(el => {
+        el.addEventListener('mouseover', (e) => {
+          const overProto = e.target.closest('.proto-info');
+          const overInteractive = e.target.closest('.inp-group, .btn-group, .point-group, .value-group');
+          if (overProto || overInteractive) { if (!overProto) _tooltip.style.display = 'none'; }
+          else { _tooltip.textContent = '\uD83D\uDCCA View details'; _tooltip.style.display = 'block'; }
+        });
+        el.addEventListener('mouseleave', () => { _tooltip.style.display = 'none'; });
+      });
+    }
+
+    init();
+  </script>
+
+  <script>document.getElementById('bg-overlay').classList.add('active');</script>
+</body>
+</html>
