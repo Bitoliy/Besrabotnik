@@ -870,9 +870,9 @@
     // TIERS
     const TIERS = [
       { id: 't1', label: 'Tier 1', desc: 'High confidence', ids: ['variational', 'nado'] },
-      { id: 't2', label: 'Tier 2', desc: 'Moderate confidence', ids: ['grvt', 'ethereal', 'extended', 'o1exchange'] },
+      { id: 't2', label: 'Tier 2', desc: 'Moderate confidence', ids: ['o1exchange', 'ethereal', 'extended', 'grvt'] },
       { id: 't3', label: 'Tier 3', desc: 'Speculative', ids: ['pacifica', 'ostium', 'hibachi'] },
-      { id: 't4', label: 'Launched', desc: 'Already live', ids: ['backpack', 'hyperliquid', 'lighter'] },
+      { id: 't4', label: 'Launched', desc: 'Already live', ids: ['edgex', 'backpack', 'hyperliquid', 'lighter'] },
     ];
 
     const LOGO_B64 = {};
@@ -941,6 +941,11 @@
         fdv: 100, alloc: 15, points: 52, ptsMax: 150, ptsStep: 1,
         remaining: '', conditions: [],
         link: 'https://hibachi.xyz/trade', ref: null,
+      },
+      edgex: {
+        name: 'EdgeX', stage: 'PERP DEX', status: 'launched', statusLabel: 'Launched',
+        logo: 'https://www.google.com/s2/favicons?domain=edgex.exchange&sz=64', fb: 'EX',
+        launched: true, link: 'https://pro.edgex.exchange/', ref: null,
       },
       backpack: {
         name: 'Backpack', stage: 'CEX - SOL', status: 'launched', statusLabel: 'Launched',
